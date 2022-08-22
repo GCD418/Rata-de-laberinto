@@ -4,6 +4,8 @@
 #define dW(a, b) digitalWrite(a, b)
 #define dR(a) digitalRead(a)
 const int mda = 2, mdr = 3, mia = 4, mir = 5, sft = 6, sfe = 7, sdt = 8, sde = 9, sit = 12, sie = 13, actI = 10, actD = 11; //motor derecha adelante, motor derecha retro, motor izquierda adelante . . .
+long tiempo1 = -1, tiempo2 = -1, distanciaIzquierda1, distanciaIzquierda2, distanciaDerecha1;
+long distanciaDerecha2;
  
 int inches = 0;
  
@@ -29,39 +31,77 @@ long distancia(int x, int y)
 	return cm;
 }
  
+void stop()
+{
+	dW(mda, 0);
+	dW(mdr, 0);
+	dW(mia, 0);
+	dW(mir, 0);
+}
+
 void derecha()
 {
-	digitalWrite(mia);
+	digitalWrite(mia, 1);
  	analogWrite(actI, 130);
- 	digitalWrite(mdr);
+ 	digitalWrite(mdr, 1);
  	analogWrite(actD, 130);
- 	delay(800);
+ 	delay(1300);
  	stop();
+}
+
+void derecha(int time)
+{
+	digitalWrite(mia, 1);
+ 	analogWrite(actI, 130);
+ 	digitalWrite(mdr, 1);
+ 	analogWrite(actD, 130);
+ 	delay(time);
+ 	stop();	
 }
  
 void izquierda()
 {
- 	digitalWrite(mda);
+ 	digitalWrite(mda, 1);
  	analogWrite(actD, 130);
- 	digitalWrite(mir);
+ 	digitalWrite(mir, 1);
  	analogWrite(actI, 130);
- 	delay(800);
+ 	delay(1300);
  	stop();
+}
+
+void izquierda(int time)
+{
+	digitalWrite(mda, 1);
+ 	analogWrite(actD, 130);
+ 	digitalWrite(mir, 1);
+ 	analogWrite(actI, 130);
+ 	delay(time);
+ 	stop();	
 }
  
 void avanzar()
 {
- 	digitalWrite(mda); //definir velocidad
+ 	digitalWrite(mda, 1); //definir velocidad
  	analogWrite(actD, 130);
- 	digitalWrite(mia);
+ 	digitalWrite(mia, 1);
  	analogWrite(actI, 130);
+}
+
+void avanzar(int time)
+{
+ 	digitalWrite(mda, 1); //definir velocidad
+ 	analogWrite(actD, 130);
+ 	digitalWrite(mia, 1);
+ 	analogWrite(actI, 130);
+ 	delay(time);
+ 	stop();
 }
 
 void retroceder()
 {
- 	digitalWrite(mdr); //definir velocidad
+ 	digitalWrite(mdr, 1); //definir velocidad
  	analogWrite(actD, 130);
- 	digitalWrite(mir);
+ 	digitalWrite(mir, 1);
  	analogWrite(actI, 130);
 }
  
@@ -80,19 +120,36 @@ bool detector_izquierda()
 		return true;
 	}
 }
-void detector_derecho()
+bool detector_derecho()
 {
  if (distancia(sdt, sde) < 3)
 	{
 		return true;
 	}
 }
-void stop()
+
+void corregirCurso()
 {
-	dW(mda, 0);
-	dW(mdr, 0);
-	dW(mia, 0);
-	dW(mir, 0);
+	if(tiempo1 == -1)
+	{
+		tiempo1 = millis();
+		distanciaDerecha1 = readUltrasonicDistance(sdt, sde);
+		distanciaIzquierda1 = readUltrasonicDistance(sit, sie);
+	}
+	tiempo2 = millis();
+	distanciaDerecha2 = readUltrasonicDistance(sdt, sde);
+	distanciaIzquierda2 = readUltrasonicDistance(sit, sie);
+	if((tiempo2 - tiempo1) >= 1000)
+	{
+		if((distanciaDerecha2 - distanciaDerecha1) > 0)
+		{
+			izquierda(40);
+		}
+		else if((distanciaDerecha2 - distanciaDerecha1) < 0)
+		{
+			derecha(40);
+		}
+	}
 }
 
 void setup()
@@ -107,19 +164,24 @@ void loop()
 {
 	while(!detector_frontal())
 	{
-		avanzar()
+		avanzar();
+		delay(80);
 		if(!detector_derecho())
 		{
 			stop();
 			derecha();
+			avanzar(60);
 			break;
 		}
+
+		corregirCurso();
 	}
 	stop();
 	if(!detector_izquierda())
 	{
 		stop();
 		izquierda();
+		avanzar(60);
 	}
 	else
 	{
